@@ -1,0 +1,14 @@
+{
+  "Core":
+  {
+    "name":"manager",
+    "serverLocation":"102.168.1.142:8080"
+  },
+  "MongoDB":
+  {
+    "HOST":"localhost",
+    "PORT":27017,
+    "DataBase":"itemManager",
+    "Collection":"itemList"
+  }
+}
