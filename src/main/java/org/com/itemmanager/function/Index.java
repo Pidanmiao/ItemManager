@@ -28,4 +28,10 @@ public class Index {
         model.addAttribute("ItemList", items);
         return "ItemList";
     }
+
+    @RequestMapping(value = "/Console", method = RequestMethod.GET)
+    public String Console()
+    {
+        return "Console";
+    }
 }

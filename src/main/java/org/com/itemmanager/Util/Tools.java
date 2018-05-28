@@ -27,4 +27,30 @@ public class Tools {
             return null;
         }
     }
+
+    public static void writeString(String fileName, String Data)
+    {
+        File file = new File(fileName);
+
+        System.err.println("Write: "+Data);
+        try {
+            if(!file.exists())
+            {
+                file.createNewFile();
+                System.err.println("File:"+file.getName()+" created.");
+            }
+            FileOutputStream out = new FileOutputStream(file,false);
+            byte[] fileContent = Data.getBytes();
+            out.write(fileContent);
+            out.close();
+            System.err.println("File:"+file.getName()+" wrote");
+        }
+        catch (FileNotFoundException e) {
+            e.printStackTrace();
+            return;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return;
+        }
+    }
 }

@@ -8,12 +8,12 @@ public class Message {
 	
 	public static class ContentType
 	{
-		static final String RegistType = "regist";
-		static final String RegistResultType = "regist-result";
+		static final String RegistType = "manager-register";
+		static final String RegistResultType = "register-result";
 		static final String NewDeviceType = "device-new";
 		static final String ChangeDeviceType = "device-change";
 		static final String RemoveDeviceType = "device-remove";
-		static final String ManagerRequestType = "device-manager-requst";
+		static final String ManagerRequestType = "device-manager-request";
 		static final String ManagerResponseType = "device-manager-response";
 	}
 	
@@ -56,14 +56,14 @@ public class Message {
 		dataObject.put("success", successFlag);
 		if(successFlag)
 		{
-			dataObject.put("mamager", infoStr);
+			dataObject.put("manager", infoStr);
 		}
 		else
 		{
 			dataObject.put("error-message", infoStr);	
 		}
 		dataObject.put("deviceName", item.name);
-		dataObject.put("DeviceID", item.mac);
+		dataObject.put("deviceID", item.mac);
 		jObject.put("contentType", ContentType.RegistResultType);
 		jObject.put("data", dataObject);
 		return new Message(jObject.toString(), true);
@@ -84,7 +84,7 @@ public class Message {
 		}
 		dataObject.put("new-manager", newManager);
 		dataObject.put("deviceName", item.name);
-		dataObject.put("DeviceID", item.mac);
+		dataObject.put("deviceID", item.mac);
 		jObject.put("data", dataObject);
 		return new Message(jObject.toString(), true);
 	}

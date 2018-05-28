@@ -1,10 +1,16 @@
 <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Console</title>
+</head>
+<body><!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>ItemList</title>
+    <title>Console</title>
     <link href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap-theme.min.css">
 
@@ -31,8 +37,8 @@
             <div id="navbar" class="navbar-collapse collapse">
                 <ul class="nav navbar-nav">
                     <li><a href="../">Home</a></li>
-                    <li class="active"><a href="#">ItemList</a></li>
-                    <li><a href="../Console">Console</a></li>
+                    <li><a href="../ItemList">ItemList</a></li>
+                    <li class="active"><a href="#">Console</a></li>
                     <li class="dropdown">
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-haspopup="true" aria-expanded="false">Help <span class="caret"></span></a>
                         <ul class="dropdown-menu">
@@ -45,57 +51,60 @@
         </div><!--/.container-fluid -->
     </nav>
     <div>
-        <div class="panel panel-default">
-            <div class="panel-heading">
-                Items
-            </div>
-            <div class="panel-body">
-                <table class="table table-hover" id="itemTable">
-                    <thead>
-                    <tr>
-                        <td>name</td>
-                        <td>mac</td>
-                        <td>location</td>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <!--/*@thymesVar id="ItemList" type="java.util.List<org.com.itemmanager.Util.Item>"*/-->
-                    <tr th:each="item,itemStat : ${ItemList}" onclick="TrOnClick(this)">
-                        <td th:text="${item.name}"></td>
-                        <td th:text="${item.mac}"></td>
-                        <td th:text="${item.location}"></td>
-                    </tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="panel-footer text-right" style="padding: 1px 5px;font-size: 12px;">
-                ItemManager
+        <textarea readonly=true style="width: 98%; height: 25em; line-height: 1.538em;" id="consoleResult"></textarea>
+        <div class="input-group" style="width: 98%;">
+            <input type="text" class="form-control" aria-label="..." id="consoleInput" onkeypress="if(event.keyCode==13) ajax()">
+            <div class="input-group-btn">
+                <button class="btn btn-default" type="button" id="consoleButton"  onclick="ajax()">Enter</button>
             </div>
         </div>
     </div>
 </div>
-
 <script src="https://cdn.bootcss.com/jquery/1.12.4/jquery.min.js"></script>
 
 <script src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
 
 <script type="text/javascript">
-    var tbl = document.getElementById("itemTable");
-    var trs = tbl.getElementsByTagName("tr");
-    trs[1].classList.add("active");
-    function TrOnClick(tr) {
-        var tbl = document.getElementById("itemTable");
-        var trs = tbl.getElementsByTagName("tr");
-        for (var i = 0; i < trs.length; i++) {
-            if (trs[i] == tr) {
-                trs[i].classList.add("active");
+
+    function ajax() {
+
+        var Data = document.getElementById("consoleInput").value;
+        document.getElementById("consoleResult").value += ">"+Data+"\n";
+        document.getElementById("consoleInput").value = "";
+        document.getElementById("consoleButton").setAttribute("disabled","true");
+        var xmlHttpReg = null;
+        if (window.ActiveXObject) {//如果是IE
+
+            xmlHttpReg = new ActiveXObject("Microsoft.XMLHTTP");
+
+        } else if (window.XMLHttpRequest) {
+
+            xmlHttpReg = new XMLHttpRequest();
+        }
+
+        if (xmlHttpReg != null) {
+            xmlHttpReg.open("POST", "../ConsoleMethod", true);
+            xmlHttpReg.send(Data);
+            xmlHttpReg.onreadystatechange = doResult;
+        }
+
+        function doResult() {
+            if (xmlHttpReg.readyState == 4) {//4代表执行完成
+                document.getElementById("consoleButton").removeAttribute("disabled");
+                if (xmlHttpReg.status == 200) {//200代表执行成功
+                    document.getElementById("consoleResult").value += xmlHttpReg.responseText +"\n";
+                }
+                else
+                {
+                    document.getElementById("consoleResult").value += "Error, Code:" + xmlHttpReg.status +"\n";
+                }
             }
-            else {
-                trs[i].classList.remove("active");
-            }
+
         }
     }
 </script>
+</body>
+</html>
 
 </body>
 </html>

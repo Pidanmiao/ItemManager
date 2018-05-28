@@ -1,16 +1,8 @@
 package org.com.itemmanager.Util;
 
-import java.io.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;  
-import java.util.concurrent.TimeUnit;
 
-import org.eclipse.paho.client.mqttv3.MqttCallback;
 import org.eclipse.paho.client.mqttv3.MqttClient;  
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;  
-import org.eclipse.paho.client.mqttv3.MqttException;  
-import org.eclipse.paho.client.mqttv3.MqttSecurityException;  
-import org.eclipse.paho.client.mqttv3.MqttTopic;  
 import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 import org.com.itemmanager.json.JSONObject;
@@ -24,6 +16,8 @@ public class MQTTClient implements Runnable {
     private String userName = "test1";
     private String passWord = "test1";
 
+    private int runtimes;
+
     public MQTTClient()
     {
         try{
@@ -36,6 +30,7 @@ public class MQTTClient implements Runnable {
                 clientid = jsonObject.getString("clientID");
                 userName = jsonObject.getString("userName");
                 passWord = jsonObject.getString("passWord");
+                runtimes = 0;
             }
         }
         catch (Exception e)
@@ -58,6 +53,7 @@ public class MQTTClient implements Runnable {
     @Override
     public void run() {
         try {
+            runtimes++;
             if(client == null) {
                 client = new MqttClient(HOST, clientid, new MemoryPersistence());
                 client.setCallback(new PushCallback(MQTTClient.this));
@@ -69,22 +65,6 @@ public class MQTTClient implements Runnable {
         }  
     }
 
-    public void stop()
-    {
-        try
-        {
-            if (client.isConnected()) {
-                client.disconnect();
-                System.err.println("client disconnected");
-                return;
-            }
-        }
-        catch (Exception e)
-        {
-            e.printStackTrace();
-
-        }
-    }
     private void connect(int nums) throws Exception
     {
         MqttConnectOptions options = getOptions();
@@ -98,7 +78,7 @@ public class MQTTClient implements Runnable {
                     int[] Qos  = {1};
                     String[] topic1 = {TOPIC};
                     client.subscribe(topic1, Qos);
-                    System.err.println("connect succeed");
+                    System.err.println("connect succeed " + i +" runtimes:"+runtimes);
                     return;
                 }
             }
@@ -106,7 +86,7 @@ public class MQTTClient implements Runnable {
             {
                 e.printStackTrace();
                 System.err.println("connect failed retrying "+i+"times");
-                Thread.sleep(2000);
+                Thread.sleep(20000);
                 continue;
             }
         }

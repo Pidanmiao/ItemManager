@@ -1,9 +1,7 @@
 package org.com.itemmanager.function;
 
 import org.com.itemmanager.Util.ItemManager;
-import org.springframework.boot.*;
 import org.springframework.boot.autoconfigure.*;
-import org.springframework.stereotype.*;
 import org.springframework.web.bind.annotation.*;
 @RestController
 @EnableAutoConfiguration
@@ -17,7 +15,7 @@ public class ReceiveMessage {
             Runnable runnable = new Runnable() {
                 @Override
                 public void run() {
-                    manager.RecevieMessage(JsData);
+                    manager.ReceiveMessage(JsData);
                 }
             };
             new Thread(runnable).start();

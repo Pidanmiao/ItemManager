@@ -1,23 +1,14 @@
 package org.com.itemmanager.Util;
 
 import java.io.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.util.*;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.util.concurrent.*;
 
-import com.mongodb.MongoClient;
-import com.mongodb.client.FindIterable;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoCursor;
-import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.model.Filters;
+import org.com.itemmanager.json.JSONArray;
 import org.com.itemmanager.json.JSONObject;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.bson.Document;
 
 
 public class ItemManager {
@@ -25,20 +16,13 @@ public class ItemManager {
 	private Dictionary<String, Item> itemList;
 	private String name = "testName";
 	private String serverLocation = "location";
-	private String MongoHost = "localhost";
-	private int MongoPort = 27017;
-	private String MongoDataBase = "itemManager";
-	private String MongoCollection = "itemList";
+	private JSONArray itemArray;
 
-	@Value("ItemList.db")
-    private String fileName;
-	private MongoClient mongoClient;
-	private MongoDatabase mongoDatabase;
-	private MongoCollection<Document> collection;
 	
 	private ItemManager()
 	{
 		System.err.println("ItemManager Initializing...");
+		itemList = new Hashtable<>();
         try{
             String JsData = Tools.readToString("./Conf/ItemManagerConfig.json");
             if(JsData != null)
@@ -46,32 +30,34 @@ public class ItemManager {
                 JSONObject jsonObject = new JSONObject(JsData);
                 name = jsonObject.getJSONObject("Core").getString("name");
                 serverLocation = jsonObject.getJSONObject("Core").getString("serverLocation");
-                MongoHost = jsonObject.getJSONObject("MongoDB").getString("HOST");
-                MongoPort = jsonObject.getJSONObject("MongoDB").getInt("PORT");
-                MongoDataBase = jsonObject.getJSONObject("MongoDB").getString("DataBase");
-                MongoCollection = jsonObject.getJSONObject("MongoDB").getString("Collection");
             }
+			String ItemData = Tools.readToString("./DB/ItemList.json");
+            if (ItemData != null)
+			{
+				JSONObject itemObject = new JSONObject(ItemData);
+				itemArray = itemObject.getJSONArray("items");
+				for(int i=0,l=itemArray.length();i<l;i++)
+				{
+					Item item = new Item();
+					JSONObject obj = itemArray.getJSONObject(i);
+					item.name = obj.getString("name");
+					item.mac = obj.getString("mac");
+					item.location = obj.getString("location");
+					itemList.put(item.name,item);
+				}
+			}
+			else
+            {
+                itemArray = new JSONArray();
+            }
+			System.err.println(itemList.toString());
+			System.err.println("ItemManager Initialized.");
         }
         catch (Exception e)
         {
             e.printStackTrace();
         }
-		itemList = new Hashtable<String, Item>();
-		mongoClient = new MongoClient( MongoHost , MongoPort );
-		mongoDatabase = mongoClient.getDatabase(MongoDataBase);
-		collection = mongoDatabase.getCollection(MongoCollection);
-		FindIterable<Document> findIterable = collection.find();
-		MongoCursor<Document> mongoCursor = findIterable.iterator();
-		while(mongoCursor.hasNext()){
-			Document doc = mongoCursor.next();
-			Item item = new Item();
-			item.name= doc.get("name").toString();
-			item.mac = doc.get("mac").toString();
-			item.location = doc.get("location").toString();
-			itemList.put(item.name, item);
-		}
-		System.err.println(itemList.toString());
-		System.err.println("ItemManager Initialized.");
+
 	}
 	public static ItemManager GetInstance()
 	{
@@ -96,6 +82,38 @@ public class ItemManager {
 
        return items;
     }
+
+    public String HandleConsole(String MethodData)
+    {
+    	String[] args = MethodData.split(" ");
+    	args[0] = args[0].toLowerCase();
+        if(args[0].equals("help"))
+        {
+            if (args.length == 1)
+            {
+                return ConsoleMessageGenerator.GenerateHelpMessage(-1);
+            }
+            else if(args[1].equals("?"))
+            {
+                return ConsoleMessageGenerator.GenerateHelpMessage(0);
+            }
+            else
+            {
+                for(int i=0, len=ConsoleMessageGenerator.ConsoleMethodList.length;i<len;i++)
+                {
+                    if(ConsoleMessageGenerator.ConsoleMethodList[i].equals(args[1]))
+                    {
+                        return ConsoleMessageGenerator.GenerateHelpMessage(i);
+                    }
+                }
+                return ConsoleMessageGenerator.GenerateErrorMessage(ConsoleMessageGenerator.ErrorType.NotFound, args[1]);
+            }
+        }
+        else
+        {
+            return ConsoleMessageGenerator.GenerateErrorMessage(ConsoleMessageGenerator.ErrorType.NotFound, args[0]);
+        }
+    }
 	
 	private void HandleMessage(Message m)
 	{
@@ -114,14 +132,25 @@ public class ItemManager {
 			{
 				try
 				{
-					if(itemList.get(ItemName).mac == ItemMac)
+					if(itemList.get(ItemName).mac.equals(ItemMac))
 					{
-						itemList.remove(ItemName);
+						for(int i=0,l=itemArray.length();i<l;i++)
+						{
+							JSONObject obj = itemArray.getJSONObject(i);
+							if(obj.getString("name").equals(ItemName))
+							{
+								itemArray.remove(i);
+								JSONObject ItemObj = new JSONObject();
+								ItemObj.put("items", itemArray);
+								Tools.writeString("./DB/ItemList.json", ItemObj.toString());
+								break;
+							}
+						}
 					}
 				}
 				catch(Exception e)
 				{
-					
+					e.printStackTrace();
 				}
 			}
 		}
@@ -137,7 +166,11 @@ public class ItemManager {
 						SendMessage(m,item);
 					}
 					else {
-					    UploadMessage(Message.GenerateErrorMessasge(m,"No Such Item"));
+					    item = itemList.get(dataObject.getString("resourceName"));
+					    if(item != null)
+						{
+							SendMessage(Message.GenerateErrorMessasge(m,"No Such Item"), item);
+						}
                     }
 				}
 				else
@@ -168,40 +201,64 @@ public class ItemManager {
 		item.name = dataObject.getString("deviceName");
 		item.mac = dataObject.getString("deviceID");
 		item.location = dataObject.getString("location");
-		String manager = dataObject.getString("manager");
+		String manager = dataObject.get("manager").toString();
         System.err.println(item.toString()+" , "+"manager="+manager);
+
         try
 		{
-            Document doc = new Document("name",item.name);
-            doc.append("mac",item.mac);
-            doc.append("location",item.location);
             if(itemList.get(item.name) == null)
             {
-                collection.insertOne(doc);
+                System.err.println("New item");
+				JSONObject obj = new JSONObject();
+				obj.put("name",item.name);
+				obj.put("mac",item.mac);
+				obj.put("location",item.location);
+				itemArray.put(obj);
+				JSONObject ItemObj = new JSONObject();
+				ItemObj.put("items", itemArray);
+				Tools.writeString("./DB/ItemList.json", ItemObj.toString());
             }
             else
             {
-                Document olddoc = collection.find(new Document("name",item.name)).first();
-                System.err.println(olddoc.toString());
-                collection.replaceOne(olddoc, doc);
+                System.err.println("Update item");
+                JSONObject obj = new JSONObject();
+				obj.put("name",item.name);
+				obj.put("mac",item.mac);
+				obj.put("location",item.location);
+				for(int i=0,l=itemArray.length();i<l;i++)
+				{
+					JSONObject oldobj = itemArray.getJSONObject(i);
+					if(obj.getString("name").equals(item.name))
+					{
+						itemArray.remove(i);
+						itemArray.put(obj);
+						JSONObject ItemObj = new JSONObject();
+						ItemObj.put("items", itemArray);
+						Tools.writeString("./DB/ItemList.json", ItemObj.toString());
+						break;
+					}
+				}
             }
             itemList.put(item.name, item);
             if(manager.equals("null")) manager = null;
 
-			Message m = Message.GenerateRegistResultMessage(item, manager, true);
+			Message m = Message.GenerateRegistResultMessage(item, this.name, true);
 			SendMessage(m,item);
 		}
 		catch(Exception e)
 		{
-		    System.err.println(e.getMessage());
-			Message m = Message.GenerateRegistResultMessage(item, e.getMessage(), true);
+		    e.printStackTrace();
+		    Message m = Message.GenerateRegistResultMessage(item, e.getMessage(), false);
 			SendMessage(m,item);
 			return;
 		}
-		Message m = Message.GenerateItemMessage(item, manager, this.name);
-		UploadMessage(m);
+		if((manager == null) || !(manager.equals(this.name)))
+		{
+			Message m = Message.GenerateItemMessage(item, manager, this.name);
+			UploadMessage(m);
+		}
 	}
-	public void RecevieMessage(String fullMessage)
+	public void ReceiveMessage(String fullMessage)
 	{
 		Message m = new Message(fullMessage, true);
 		HandleMessage(m);
@@ -232,6 +289,7 @@ public class ItemManager {
             int responseCode = connection.getResponseCode();
 
             if (responseCode == 200) {
+            	System.err.println("Message Send:" + m.getFull_message());
                 is = connection.getInputStream();
                 br = new BufferedReader(new InputStreamReader(is, "UTF-8"));
                 StringBuffer sbf = new StringBuffer();
@@ -250,7 +308,7 @@ public class ItemManager {
 		}
 		catch(Exception e)
 		{
-			
+			e.printStackTrace();
 		}
 	}
 	
@@ -285,6 +343,7 @@ public class ItemManager {
 			int responseCode;
 			responseCode = connection.getResponseCode();
 			if ( responseCode == 200) {
+                System.err.println("Message Send:" + m.getFull_message());
                 is = connection.getInputStream();
                 br = new BufferedReader(new InputStreamReader(is, "UTF-8"));
 
@@ -299,7 +358,7 @@ public class ItemManager {
             }
             else
 			{
-				System.err.println("Response: "+responseCode);
+				System.err.println("Response: "+responseCode+" Message:"+m.getFull_message());
 			}
 		}
 		catch(Exception e)
