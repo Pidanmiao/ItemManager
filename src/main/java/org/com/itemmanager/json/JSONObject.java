@@ -232,7 +232,7 @@ public class JSONObject {
                 throw x.syntaxError("Expected a ':' after a key");
             }
             
-            // Use syntaxError(..) to include error location
+            // Use SyntaxError(..) to include error location
             
             if (key != null) {
                 // Check if key exists

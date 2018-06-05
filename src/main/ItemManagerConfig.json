@@ -1,14 +1,10 @@
 {
   "Core":
   {
-    "name":"manager",
-    "serverLocation":"102.168.1.142:8080"
-  },
-  "MongoDB":
-  {
-    "HOST":"localhost",
-    "PORT":27017,
-    "DataBase":"itemManager",
-    "Collection":"itemList"
+    "name":"Test1",
+    "serverLocation":"http://47.98.245.174:8080",
+    "serverMethod":"/upload",
+    "serverConsole":"/ManagerRequest",
+    "serverMap":"/MapRequest"
   }
 }

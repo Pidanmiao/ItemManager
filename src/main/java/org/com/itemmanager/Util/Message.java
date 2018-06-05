@@ -15,6 +15,9 @@ public class Message {
 		static final String RemoveDeviceType = "device-remove";
 		static final String ManagerRequestType = "device-manager-request";
 		static final String ManagerResponseType = "device-manager-response";
+		static final String GetItemListType = "manager-get-itemlist";
+		static final String FindManagerType = "find-manager";
+		static final String FindItemType = "find-item";
 	}
 	
 	public Message(String fullMessage, boolean sendflag)
@@ -93,8 +96,8 @@ public class Message {
 	{
 		JSONObject jObject = new JSONObject();
 		JSONObject dataObject = new JSONObject();
-		jObject.put("contentType", "device-manager-response");
-		JSONObject targetDataObject = (JSONObject)(new JSONObject(m).get("data"));
+		jObject.put("contentType", ContentType.ManagerResponseType);
+		JSONObject targetDataObject = (JSONObject)(new JSONObject(m.full_message).get("data"));
 		dataObject.put("resourceManager",targetDataObject.getString("targetManager"));
 		dataObject.put("resourceName",targetDataObject.getString("targetName"));
 		dataObject.put("targetManager",targetDataObject.getString("resourceManager"));
@@ -105,4 +108,37 @@ public class Message {
 
 		return new Message(jObject.toString(), true);
 	}
+
+	public static Message GenerateGetItemListMessage(String managername)
+	{
+		JSONObject jObject = new JSONObject();
+		JSONObject dataObject = new JSONObject();
+		jObject.put("contentType", ContentType.GetItemListType);
+		dataObject.put("manager", managername);
+        jObject.put("data", dataObject);
+
+        return new Message(jObject.toString(), true);
+	}
+
+	public static Message GenerateFindManagerMessage(String managername)
+    {
+        JSONObject jObject = new JSONObject();
+        JSONObject dataObject = new JSONObject();
+        jObject.put("contentType", ContentType.FindManagerType);
+        dataObject.put("manager", managername);
+        jObject.put("data", dataObject);
+
+        return new Message(jObject.toString(), true);
+    }
+
+    public static Message GenerateFindItemMessage(String itemname)
+    {
+        JSONObject jObject = new JSONObject();
+        JSONObject dataObject = new JSONObject();
+        jObject.put("contentType", ContentType.FindItemType);
+        dataObject.put("itemName", itemname);
+        jObject.put("data", dataObject);
+
+        return new Message(jObject.toString(), true);
+    }
 }

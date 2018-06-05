@@ -1,7 +1,7 @@
 {
-  "HOST":"tcp://192.168.1.142:61613",
-  "TOPIC":"abcd",
-  "clientID":"client124",
+  "HOST":"tcp://47.98.245.174:61613",
+  "TOPIC":"Manager/Test1",
+  "clientID":"Test1",
   "userName":"test1",
   "passWord":"test1"
 }

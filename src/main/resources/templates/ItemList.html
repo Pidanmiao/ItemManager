@@ -56,6 +56,7 @@
                         <td>name</td>
                         <td>mac</td>
                         <td>location</td>
+                        <td>action</td>
                     </tr>
                     </thead>
                     <tbody>
@@ -64,6 +65,7 @@
                         <td th:text="${item.name}"></td>
                         <td th:text="${item.mac}"></td>
                         <td th:text="${item.location}"></td>
+                        <td th:text="remove" th:onclick="'removeClick(\''+${item.mac}+'\')'"></td>
                     </tr>
                     </tbody>
                 </table>
@@ -93,6 +95,41 @@
             else {
                 trs[i].classList.remove("active");
             }
+        }
+    }
+
+    function removeClick(itemID) {
+        var serverhost="[[${serverHost}]]";
+
+        var Data = itemID;
+        var xmlHttpReg = null;
+        if (window.ActiveXObject) {//如果是IE
+
+            xmlHttpReg = new ActiveXObject("Microsoft.XMLHTTP");
+
+        } else if (window.XMLHttpRequest) {
+
+            xmlHttpReg = new XMLHttpRequest();
+        }
+
+        if (xmlHttpReg != null) {
+            xmlHttpReg.open("POST", serverhost, true);
+            xmlHttpReg.send(Data);
+            xmlHttpReg.onreadystatechange = doResult;
+        }
+
+        function doResult() {
+            if (xmlHttpReg.readyState == 4) {//4代表执行完成
+                if (xmlHttpReg.status == 200) {//200代表执行成功
+                    location.reload();
+                }
+                else
+                {
+                    alert("Error, type:" + xmlHttpReg.status + "\nMessage:"+xmlHttpReg.responseText);
+                    location.reload();
+                }
+            }
+
         }
     }
 </script>

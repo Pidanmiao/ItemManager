@@ -1,8 +1,21 @@
 package org.com.itemmanager.Util;
 
 import java.io.*;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class Tools {
+    public static class HttpResponseContainer
+    {
+        public int responseCode;
+        public String responseBody;
+
+        public HttpResponseContainer(int rescode,String resbody)
+        {
+            responseCode = rescode;
+            responseBody = resbody;
+        }
+    }
     public static String readToString(String fileName) {
         String encoding = "UTF-8";
         File file = new File(fileName);
@@ -51,6 +64,54 @@ public class Tools {
         } catch (IOException e) {
             e.printStackTrace();
             return;
+        }
+    }
+
+    public static HttpResponseContainer HttpRequest(String targethost, String requestBody)
+    {
+        HttpURLConnection connection = null;
+        InputStream is = null;
+        OutputStream os = null;
+        BufferedReader br = null;
+        String result = null;
+        try
+        {
+            URL url = new URL(targethost);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setConnectTimeout(15000);
+            connection.setReadTimeout(60000);
+            connection.setDoOutput(true);
+            connection.setDoInput(true);
+            connection.setRequestProperty("accept", "*/*");
+            connection.setRequestProperty("connection", "Keep-Alive");
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("user-agent", "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1;SV1)");
+            os = connection.getOutputStream();
+            os.write(requestBody.getBytes());
+            int responseCode = connection.getResponseCode();
+
+            if (responseCode == 200) {
+                is = connection.getInputStream();
+                br = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+                StringBuffer sbf = new StringBuffer();
+                String temp = null;
+                while ((temp = br.readLine()) != null) {
+                    sbf.append(temp);
+                    sbf.append("\r\n");
+                }
+                result = sbf.toString();
+                return new HttpResponseContainer(responseCode, result);
+            }
+            else
+            {
+               return  new HttpResponseContainer(responseCode, "");
+            }
+        }
+        catch(Exception e)
+        {
+            e.printStackTrace();
+            return  new HttpResponseContainer(-1, "");
         }
     }
 }

@@ -67,6 +67,7 @@
 <script type="text/javascript">
 
     function ajax() {
+        var server = "[[${serverHost}]]";
 
         var Data = document.getElementById("consoleInput").value;
         document.getElementById("consoleResult").value += ">"+Data+"\n";
@@ -83,7 +84,7 @@
         }
 
         if (xmlHttpReg != null) {
-            xmlHttpReg.open("POST", "../ConsoleMethod", true);
+            xmlHttpReg.open("POST", server, true);
             xmlHttpReg.send(Data);
             xmlHttpReg.onreadystatechange = doResult;
         }

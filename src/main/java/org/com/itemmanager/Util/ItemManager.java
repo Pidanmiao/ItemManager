@@ -16,6 +16,9 @@ public class ItemManager {
 	private Dictionary<String, Item> itemList;
 	private String name = "testName";
 	private String serverLocation = "location";
+	private String serverMethod = "method";
+	private String consoleMethod = "console";
+	private String mapMethod = "map";
 	private JSONArray itemArray;
 
 	
@@ -30,6 +33,9 @@ public class ItemManager {
                 JSONObject jsonObject = new JSONObject(JsData);
                 name = jsonObject.getJSONObject("Core").getString("name");
                 serverLocation = jsonObject.getJSONObject("Core").getString("serverLocation");
+                serverMethod = jsonObject.getJSONObject("Core").getString("serverMethod");
+                consoleMethod = jsonObject.getJSONObject("Core").getString("serverConsole");
+                mapMethod = jsonObject.getJSONObject("Core").getString("serverMap");
             }
 			String ItemData = Tools.readToString("./DB/ItemList.json");
             if (ItemData != null)
@@ -46,7 +52,7 @@ public class ItemManager {
 					itemList.put(item.name,item);
 				}
 			}
-			else
+			if(itemArray == null)
             {
                 itemArray = new JSONArray();
             }
@@ -56,6 +62,10 @@ public class ItemManager {
         catch (Exception e)
         {
             e.printStackTrace();
+            if(itemArray == null)
+            {
+                itemArray = new JSONArray();
+            }
         }
 
 	}
@@ -67,6 +77,21 @@ public class ItemManager {
 	public String getName()
     {
         return this.name;
+    }
+
+    public String getServerMessageLocation()
+    {
+        return serverLocation+serverMethod;
+    }
+
+    public String getServerConsoleLocation()
+    {
+        return serverLocation+consoleMethod;
+    }
+
+    public String getServerMapLocation()
+    {
+        return serverLocation+mapMethod;
     }
 
     public List<Item> GetItemList()
@@ -81,38 +106,6 @@ public class ItemManager {
         }
 
        return items;
-    }
-
-    public String HandleConsole(String MethodData)
-    {
-    	String[] args = MethodData.split(" ");
-    	args[0] = args[0].toLowerCase();
-        if(args[0].equals("help"))
-        {
-            if (args.length == 1)
-            {
-                return ConsoleMessageGenerator.GenerateHelpMessage(-1);
-            }
-            else if(args[1].equals("?"))
-            {
-                return ConsoleMessageGenerator.GenerateHelpMessage(0);
-            }
-            else
-            {
-                for(int i=0, len=ConsoleMessageGenerator.ConsoleMethodList.length;i<len;i++)
-                {
-                    if(ConsoleMessageGenerator.ConsoleMethodList[i].equals(args[1]))
-                    {
-                        return ConsoleMessageGenerator.GenerateHelpMessage(i);
-                    }
-                }
-                return ConsoleMessageGenerator.GenerateErrorMessage(ConsoleMessageGenerator.ErrorType.NotFound, args[1]);
-            }
-        }
-        else
-        {
-            return ConsoleMessageGenerator.GenerateErrorMessage(ConsoleMessageGenerator.ErrorType.NotFound, args[0]);
-        }
     }
 	
 	private void HandleMessage(Message m)
@@ -130,28 +123,10 @@ public class ItemManager {
 			String ManagerName = dataObject.getString("manager");
 			if(ManagerName == this.name)
 			{
-				try
-				{
-					if(itemList.get(ItemName).mac.equals(ItemMac))
-					{
-						for(int i=0,l=itemArray.length();i<l;i++)
-						{
-							JSONObject obj = itemArray.getJSONObject(i);
-							if(obj.getString("name").equals(ItemName))
-							{
-								itemArray.remove(i);
-								JSONObject ItemObj = new JSONObject();
-								ItemObj.put("items", itemArray);
-								Tools.writeString("./DB/ItemList.json", ItemObj.toString());
-								break;
-							}
-						}
-					}
-				}
-				catch(Exception e)
-				{
-					e.printStackTrace();
-				}
+			    if(itemList.get(ItemName).mac.equals(ItemMac))
+			    {
+			        RemoveItem(ItemName, ItemMac);
+			    }
 			}
 		}
 		else if(contype.equals(Message.ContentType.ManagerRequestType) || contype.equals(Message.ContentType.ManagerResponseType))
@@ -258,6 +233,55 @@ public class ItemManager {
 			UploadMessage(m);
 		}
 	}
+
+	public String RemoveItem(String itemName, String itemID)
+    {
+        String iName = null;
+        String iID = null;
+        try {
+            if (itemName == null) {
+                if (itemID == null) {
+                    return "Cannot find item with neither itemName nor itemID.\n";
+                } else {
+                    while (itemList.elements().hasMoreElements()) {
+                        Item item = itemList.elements().nextElement();
+                        if (item.mac.equals(itemID)) {
+                            iName = item.name;
+                            iID = item.mac;
+                            break;
+                        }
+                    }
+                }
+            } else {
+                Item item = itemList.get(itemName);
+                if ((itemID == null) || (item.mac.equals(itemID))) {
+                    iName = item.name;
+                    iID = item.mac;
+                } else {
+                    return "Cannot find item with both name: " + itemName + " and id: " + itemID + ".\n";
+                }
+            }
+
+            for (int i = 0, l = itemArray.length(); i < l; i++) {
+                JSONObject obj = itemArray.getJSONObject(i);
+                if (obj.getString("name").equals(iName)) {
+                    itemArray.remove(i);
+                    JSONObject ItemObj = new JSONObject();
+                    ItemObj.put("items", itemArray);
+                    Tools.writeString("./DB/ItemList.json", ItemObj.toString());
+                    break;
+                }
+            }
+            itemList.remove(iName);
+
+            return "Item with name: " + iName + " id: " + iID + " removed.\n";
+        }
+        catch (Exception e)
+        {
+            e.printStackTrace();
+            return e.getMessage();
+        }
+    }
 	public void ReceiveMessage(String fullMessage)
 	{
 		Message m = new Message(fullMessage, true);
@@ -266,49 +290,15 @@ public class ItemManager {
 	
 	private void UploadMessage(Message m)
 	{
-		HttpURLConnection connection = null;
-        InputStream is = null;
-        OutputStream os = null;
-        BufferedReader br = null;
-        String result = null;
-		try
+		Tools.HttpResponseContainer container = Tools.HttpRequest(this.serverLocation+this.serverMethod, m.getFull_message());
+		if(container.responseCode == 200)
 		{
-			URL url = new URL(this.serverLocation);
-			connection = (HttpURLConnection) url.openConnection();
-			connection.setRequestMethod("POST");
-			connection.setConnectTimeout(15000);
-			connection.setReadTimeout(60000);
-			connection.setDoOutput(true);
-			connection.setDoInput(true);
-			connection.setRequestProperty("accept", "*/*");  
-			connection.setRequestProperty("connection", "Keep-Alive");  
-			connection.setRequestProperty("Content-Type", "application/json");
-			connection.setRequestProperty("user-agent", "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1;SV1)");  
-			os = connection.getOutputStream();
-			os.write((m.getFull_message()).getBytes());
-            int responseCode = connection.getResponseCode();
-
-            if (responseCode == 200) {
-            	System.err.println("Message Send:" + m.getFull_message());
-                is = connection.getInputStream();
-                br = new BufferedReader(new InputStreamReader(is, "UTF-8"));
-                StringBuffer sbf = new StringBuffer();
-                String temp = null;
-                while ((temp = br.readLine()) != null) {
-                    sbf.append(temp);
-                    sbf.append("\r\n");
-                }
-                result = sbf.toString();
-                System.err.println(result);
-            }
-			else
-			{
-				System.err.println("Response: "+responseCode);
-			}
+			System.err.println("Message Send:" + m.getFull_message());
+			System.err.println(container.responseBody);
 		}
-		catch(Exception e)
+		else
 		{
-			e.printStackTrace();
+			System.err.println("Response: "+container.responseCode);
 		}
 	}
 	
@@ -320,51 +310,17 @@ public class ItemManager {
 	
 	private void SendMessage(Message m,Item item)
 	{
-		HttpURLConnection connection = null;
-        InputStream is = null;
-        OutputStream os = null;
-        BufferedReader br = null;
-        String result = null;
-		try
-		{
-			URL url = new URL(item.location);
-			connection = (HttpURLConnection) url.openConnection();
-			connection.setRequestMethod("POST");
-			connection.setConnectTimeout(15000);
-			connection.setReadTimeout(60000);
-			connection.setDoOutput(true);
-			connection.setDoInput(true);
-			connection.setRequestProperty("accept", "*/*");  
-			connection.setRequestProperty("connection", "Keep-Alive");  
-			connection.setRequestProperty("Content-Type", "application/json");
-			connection.setRequestProperty("user-agent", "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1;SV1)");  
-			os = connection.getOutputStream();
-			os.write((m.getFull_message()).getBytes());
-			int responseCode;
-			responseCode = connection.getResponseCode();
-			if ( responseCode == 200) {
-                System.err.println("Message Send:" + m.getFull_message());
-                is = connection.getInputStream();
-                br = new BufferedReader(new InputStreamReader(is, "UTF-8"));
-
-                StringBuffer sbf = new StringBuffer();
-                String temp = null;
-                while ((temp = br.readLine()) != null) {
-                    sbf.append(temp);
-                    sbf.append("\r\n");
-                }
-                result = sbf.toString();
-				System.err.println(result);
-            }
-            else
-			{
-				System.err.println("Response: "+responseCode+" Message:"+m.getFull_message());
-			}
-		}
-		catch(Exception e)
-		{
-			e.printStackTrace();
-		}
+        Tools.HttpResponseContainer container = Tools.HttpRequest(item.location, m.getFull_message());
+		System.err.println("Respones:" + container.responseCode +" Body:"+container.responseBody);
+        if(container.responseCode == 200)
+        {
+            System.err.println("Message Send:" + m.getFull_message());
+            System.err.println(container.responseBody);
+        }
+        else
+        {
+            System.err.println("Response: "+container.responseCode);
+        }
 	}
 }
 

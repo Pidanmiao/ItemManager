@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>ItemMap</title>
+    <link rel="stylesheet" href="https://cdn.bootcss.com/bootstrap/3.3.7/css/bootstrap.min.css">
+    <script src="https://cdn.bootcss.com/jquery/1.12.4/jquery.min.js"></script>
+    <script src="https://cdn.bootcss.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="http://api.map.baidu.com/api?v=2.0&ak=vuRVHrWKLglHINjyKWFHGsyDS1CUZnyr"></script>
+    <style type="text/css">
+        html{height:100%}
+        body{height:100%;margin:0px;padding:0px}
+        #container{height:100%}
+    </style>
+</head>
+<body>
+<div id="container">
+
+    <script type="text/javascript">
+        var map = new BMap.Map("container");
+        map.addControl(new BMap.NavigationControl());
+        var geolocation = new BMap.Geolocation();
+        geolocation.getCurrentPosition(function(r){
+            if(this.getStatus() == BMAP_STATUS_SUCCESS){
+                map.centerAndZoom(r.point, 15);
+            }
+            else {
+                alert('failed'+this.getStatus());
+            }
+        });
+        var markerlist = [];
+    </script>
+    <div class="col-lg-6" style="margin-left : 5%;margin-top: 2%">
+        <div class="input-group">
+            <input type="text" class="form-control" placeholder="Search for..." id = "MapInput">
+            <span class="input-group-btn">
+        <button class="btn btn-default" type="button" onclick="ajax()" id="MapButton">查找</button>
+      </span>
+        </div><!-- /input-group -->
+    </div><!-- /.col-lg-6 -->
+</div>
+
+<script type="text/javascript">
+
+    var findloc = null;
+    function ajax() {
+        var serverhost="[[${serverHost}]]";
+
+        var Data = document.getElementById("MapInput").value;
+        findloc = Data;
+        var JSData = {"contentType":"map-get-manager","data":{"managerLocation":Data}};
+        document.getElementById("MapInput").value = "";
+        document.getElementById("MapButton").setAttribute("disabled","true");
+        map.clearOverlays();
+        markerlist = [];
+
+        var xmlHttpReg = null;
+        if (window.ActiveXObject) {//如果是IE
+
+            xmlHttpReg = new ActiveXObject("Microsoft.XMLHTTP");
+
+        } else if (window.XMLHttpRequest) {
+
+            xmlHttpReg = new XMLHttpRequest();
+        }
+
+        if (xmlHttpReg != null) {
+            xmlHttpReg.open("POST", serverhost, true);
+            xmlHttpReg.send(JSON.stringify(JSData));
+            xmlHttpReg.onreadystatechange = doResult;
+        }
+
+        function doResult() {
+            if (xmlHttpReg.readyState == 4) {//4代表执行完成
+                document.getElementById("MapButton").removeAttribute("disabled");
+                if (xmlHttpReg.status == 200) {//200代表执行成功
+                    var managerData = JSON.parse(xmlHttpReg.responseText);
+                    var myGeo = new BMap.Geocoder();
+                    myGeo.getPoint(findloc, function (point) {
+                            if (point) {
+                            map.centerAndZoom(point, 16);
+                            }
+                        },
+                        managerData.data.city);
+                    if(managerData.data.managerList) {
+                        for (var i = 0; i < managerData.data.managerList.length; i++) {
+                            manager = managerData.data.managerList[i];
+                            myGeo.getPoint(manager, function (point) {
+                                    if (point) {
+                                        markerlist.push(new BMap.Marker(point));
+                                        var markerindex = markerlist.length - 1;
+                                        markerlist[markerindex].addEventListener("click", markerClick);
+                                        markerlist[markerindex].managername = manager;
+                                        map.addOverlay(markerlist[markerindex]);
+                                    }
+                                },
+                                managerData.data.city);
+                        }
+                    }
+                }
+                else
+                {
+                    alert("Error, type:" + xmlHttpReg.status + "\nMessage:"+xmlHttpReg.responseText);
+                }
+            }
+
+        }
+    }
+
+    function markerClick() {
+        var serverhost="[[${serverHost}]]";
+        var marker = this;
+
+        var JSData = {"contentType":"map-get-itemlist","data":{"manager":this.managername}};
+        var xmlHttpReg = null;
+        if (window.ActiveXObject) {//如果是IE
+
+            xmlHttpReg = new ActiveXObject("Microsoft.XMLHTTP");
+
+        } else if (window.XMLHttpRequest) {
+
+            xmlHttpReg = new XMLHttpRequest();
+        }
+
+        if (xmlHttpReg != null) {
+            xmlHttpReg.open("POST", serverhost, true);
+            xmlHttpReg.send(JSON.stringify(JSData));
+            xmlHttpReg.onreadystatechange = doResult;
+        }
+
+        function doResult() {
+            if (xmlHttpReg.readyState == 4) {//4代表执行完成
+                if (xmlHttpReg.status == 200) {//200代表执行成功
+                    var itemData = JSON.parse(xmlHttpReg.responseText);
+                    var opts = {
+                        width : 250,     // 信息窗口宽度
+                        height: 100,     // 信息窗口高度
+                        title : marker.managername // 信息窗口标题
+                    }
+                    function htmlgenerator(itemList) {
+                        var htmlstr = "<table class=\"table table-hover\" id=\"itemTable\">\n" +
+                            "                    <thead>\n" +
+                            "                    <tr>\n" +
+                            "                        <td>name</td>\n" +
+                            "                        <td>mac</td>\n" +
+                            "                    </tr>\n" +
+                            "                    </thead>\n" +
+                            "                    <tbody>";
+                        itemList.forEach(function (item) {
+                            var tempstr = "<tr>\n"+
+                                "    <td>"+item.deviceName+"</td>\n"+
+                                "<td>"+item.deviceID+"</td>\n"+
+                                "    <\tr>\n";
+                            htmlstr = htmlstr + tempstr;
+                        })
+                        htmlstr = htmlstr + "</tbody>\n</table>";
+                        return htmlstr;
+                    }
+                    var infoWindow = new BMap.InfoWindow(htmlgenerator(itemData.data.itemList), opts);
+                    map.openInfoWindow(infoWindow, marker.getPosition());
+                }
+                else
+                {
+                    alert("Error, type:" + xmlHttpReg.status + "\nMessage:"+xmlHttpReg.responseText);
+                }
+            }
+
+        }
+
+    }
+</script>
+</body>
+</html>
